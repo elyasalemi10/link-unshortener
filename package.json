@@ -1,0 +1,10 @@
+{
+  "name": "link-unshortener",
+  "version": "1.0.0",
+  "description": "Unshorten shortened URLs to get the full destination link",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  }
+}

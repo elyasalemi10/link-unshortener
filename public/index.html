@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Link Unshortener</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f0f12;
+      --surface: #1a1a1f;
+      --border: #2a2a32;
+      --accent: #00d4aa;
+      --accent-dim: #00a884;
+      --text: #e8e8ed;
+      --text-muted: #8888a0;
+      --error: #ff6b6b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background-image: 
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 212, 170, 0.15), transparent),
+        radial-gradient(ellipse 60% 40% at 100% 100%, rgba(0, 168, 132, 0.08), transparent);
+    }
+
+    main {
+      width: 100%;
+      max-width: 560px;
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 2rem;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    input {
+      flex: 1;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      padding: 1rem 1.25rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input::placeholder {
+      color: var(--text-muted);
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.15);
+    }
+
+    button {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding: 1rem 1.5rem;
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    button:hover {
+      background: var(--accent-dim);
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .result {
+      margin-top: 1.5rem;
+      padding: 1.25rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: none;
+    }
+
+    .result.visible {
+      display: block;
+    }
+
+    .result.error {
+      border-color: rgba(255, 107, 107, 0.4);
+      background: rgba(255, 107, 107, 0.08);
+    }
+
+    .result-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .result-url {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      word-break: break-all;
+      color: var(--accent);
+    }
+
+    .result.error .result-url {
+      color: var(--error);
+    }
+
+    .copy-btn {
+      margin-top: 0.75rem;
+      padding: 0.5rem 1rem;
+      font-size: 0.8rem;
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+
+    .copy-btn:hover {
+      background: rgba(0, 212, 170, 0.1);
+    }
+
+    .copy-btn.copied {
+      border-color: var(--accent-dim);
+      color: var(--accent-dim);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Link Unshortener</h1>
+    <p class="subtitle">Paste a shortened URL to reveal the full destination link</p>
+
+    <div class="input-group">
+      <input
+        type="url"
+        id="urlInput"
+        placeholder="https://vt.tiktok.com/ZSmFWMwMB/"
+        autocomplete="off"
+      />
+      <button id="unshortenBtn">Unshorten</button>
+    </div>
+
+    <div id="result" class="result">
+      <div class="result-label">Full URL</div>
+      <div id="resultUrl" class="result-url"></div>
+      <button id="copyBtn" class="copy-btn" style="display: none;">Copy</button>
+    </div>
+  </main>
+
+  <script>
+    const urlInput = document.getElementById('urlInput');
+    const unshortenBtn = document.getElementById('unshortenBtn');
+    const resultEl = document.getElementById('result');
+    const resultUrlEl = document.getElementById('resultUrl');
+    const copyBtn = document.getElementById('copyBtn');
+
+    unshortenBtn.addEventListener('click', unshorten);
+    urlInput.addEventListener('keydown', (e) => e.key === 'Enter' && unshorten());
+
+    async function unshorten() {
+      const url = urlInput.value.trim();
+      if (!url) {
+        showResult('Please enter a URL', true);
+        return;
+      }
+
+      unshortenBtn.disabled = true;
+      resultEl.classList.remove('visible', 'error');
+      resultEl.classList.add('visible');
+      resultUrlEl.textContent = 'Resolving...';
+      copyBtn.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/unshorten', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          showResult(data.error || 'Something went wrong', true);
+          return;
+        }
+
+        showResult(data.fullUrl, false);
+        copyBtn.style.display = 'inline-block';
+        copyBtn.textContent = 'Copy';
+        copyBtn.classList.remove('copied');
+      } catch (err) {
+        showResult(err.message || 'Failed to connect', true);
+      } finally {
+        unshortenBtn.disabled = false;
+      }
+    }
+
+    function showResult(text, isError) {
+      resultEl.classList.toggle('error', isError);
+      resultUrlEl.textContent = text;
+    }
+
+    copyBtn.addEventListener('click', async () => {
+      const url = resultUrlEl.textContent;
+      if (!url || url === 'Resolving...' || resultEl.classList.contains('error')) return;
+
+      try {
+        await navigator.clipboard.writeText(url);
+        copyBtn.textContent = 'Copied!';
+        copyBtn.classList.add('copied');
+        setTimeout(() => {
+          copyBtn.textContent = 'Copy';
+          copyBtn.classList.remove('copied');
+        }, 2000);
+      } catch {
+        copyBtn.textContent = 'Copy failed';
+      }
+    });
+  </script>
+</body>
+</html>
