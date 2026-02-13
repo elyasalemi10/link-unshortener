@@ -31,6 +31,11 @@ Unshorten shortened URLs (TikTok, bit.ly, etc.) to get the full destination link
 
 Visit http://localhost:3000
 
+### Vercel deployment
+
+- Add `API_KEY` in your Vercel project **Settings → Environment Variables**
+- The API is at `POST /api` (not `/aapi` – watch for typos)
+
 ## API
 
 **POST** `/api`
