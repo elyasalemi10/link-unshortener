@@ -78,11 +78,11 @@ async function fetchViaSSSTik(link) {
 }
 
 async function getTikTokVideoUrl(link) {
-  let url = await fetchViaTikWM(link);
+  let url = await fetchViaSSSTik(link);
   if (url) return url;
-  url = await fetchViaLovetik(link);
+  url = await fetchViaTikWM(link);
   if (url) return url;
-  return await fetchViaSSSTik(link);
+  return await fetchViaLovetik(link);
 }
 
 const corsHeaders = {
@@ -131,7 +131,10 @@ export default {
         });
       }
       const videoRes = await fetch(bestUrl, {
-        headers: { 'User-Agent': UA },
+        headers: {
+          'User-Agent': UA,
+          'Referer': 'https://www.tiktok.com/',
+        },
         signal: AbortSignal.timeout(60000),
       });
       if (!videoRes.ok) {
@@ -139,6 +142,19 @@ export default {
           status: 502,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+      }
+      const ct = (videoRes.headers.get('content-type') || '').toLowerCase();
+      const looksLikeVideo = ct.includes('video') || ct.includes('octet-stream');
+      if (!looksLikeVideo) {
+        const sample = await videoRes.clone().arrayBuffer();
+        const arr = new Uint8Array(sample);
+        const isMP4 = arr.length >= 8 && arr[4] === 0x66 && arr[5] === 0x74 && arr[6] === 0x79 && arr[7] === 0x70;
+        if (!isMP4) {
+          return new Response(JSON.stringify({ error: 'Video source returned invalid content. Try a different link.' }), {
+            status: 502,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
       }
       return new Response(videoRes.body, {
         status: 200,

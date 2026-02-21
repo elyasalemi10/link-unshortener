@@ -211,19 +211,28 @@ const server = http.createServer(async (req, res) => {
     try {
       const u = new URL(req.url, 'http://localhost');
       const proxyUrl = u.searchParams.get('url');
-      const allowedHosts = ['tiktok', 'tiktokcdn', 'byteoversea', 'lovetik'];
+      const allowedHosts = ['tiktok', 'tiktokcdn', 'byteoversea', 'lovetik', 'tikcdn'];
       if (!proxyUrl || !proxyUrl.startsWith('https://') || !allowedHosts.some((h) => proxyUrl.includes(h))) {
         res.writeHead(400);
         res.end('Invalid URL');
         return;
       }
       const videoRes = await fetch(proxyUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Referer': 'https://www.tiktok.com/',
+        },
         signal: AbortSignal.timeout(60000),
       });
       if (!videoRes.ok) {
         res.writeHead(502);
         res.end('Failed to fetch video');
+        return;
+      }
+      const ct = (videoRes.headers.get('content-type') || '').toLowerCase();
+      if (ct.includes('text/html') || ct.includes('application/json')) {
+        res.writeHead(502, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Video source returned invalid content' }));
         return;
       }
       res.writeHead(200, {

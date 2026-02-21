@@ -93,11 +93,12 @@ async function fetchViaSSSTik(link) {
 }
 
 async function getTikTokVideoUrl(link) {
-  let result = await fetchViaTikWM(link);
+  let result = await fetchViaSSSTik(link);
+  if (result) return result;
+  result = await fetchViaTikWM(link);
   if (result) return result;
   result = await fetchViaLovetik(link);
-  if (result) return result;
-  return await fetchViaSSSTik(link);
+  return result;
 }
 
 const corsHeaders = {
