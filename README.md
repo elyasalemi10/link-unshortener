@@ -48,25 +48,26 @@ Visit http://localhost:3000
 
 ### TikTok Video Download
 
-**GET** `/api/download?url=...` — Expand short link, fetch video, stream MP4 back
+**Workflow:** Short link → API → Download link → Fetch video
 
-Works with short links (`vt.tiktok.com`, `vm.tiktok.com`) and full URLs. Automatically expands short links before downloading.
+**1. POST** `/api/tiktok` — Get download URL (no watermark, HD)
+
+- **Body:** `{ "url": "https://vt.tiktok.com/..." }` (short or full TikTok URL)
+- **Response:** `{ "success": true, "downloadUrl": "https://...", "title": "...", "author": "..." }`
+
+**2. GET** `/api/download?url=...` — Download video through API
+
+- Pass the **TikTok URL** (not the downloadUrl). API fetches and returns the MP4.
+- **POST** `/api/download` with `{ "url": "https://vt.tiktok.com/..." }` also works.
 
 **Example:**
 
 ```bash
-# Short link (auto-expanded)
-curl -L -o video.mp4 "https://your-domain.com/api/download?url=https://vt.tiktok.com/ZSr7brpo4/"
+# Step 1: Get download link
+curl -X POST "https://your-domain.com/api/tiktok" -H "Content-Type: application/json" -d '{"url":"https://vt.tiktok.com/ZSr7brpo4/"}'
 
-# Full URL
-curl -L -o video.mp4 "https://your-domain.com/api/download?url=https://www.tiktok.com/@user/video/1234567890"
+# Step 2: Download video (use TikTok URL, not the downloadUrl)
+curl -L -o video.mp4 "https://your-domain.com/api/download?url=https://vt.tiktok.com/ZSr7brpo4/"
 ```
 
-**Response:** Binary MP4 stream or JSON error.
-
----
-
-**POST** `/api/tiktok` — Get download URL (JSON, no streaming)
-
-- **Body:** `{ "url": "https://vt.tiktok.com/..." }`
-- **Response:** `{ "success": true, "downloadUrl": "https://...", "title": "...", "author": "..." }`
+**Provider:** Slbjs (no watermark, HD) with Lovetik/TikWM/SSSTik fallbacks.

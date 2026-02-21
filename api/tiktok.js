@@ -1,5 +1,26 @@
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
+async function fetchViaSlbjs(link) {
+  try {
+    const res = await fetch('https://tdownv4.sl-bjs.workers.dev/?down=' + encodeURIComponent(link), {
+      headers: { 'User-Agent': UA },
+      signal: AbortSignal.timeout(20000),
+    });
+    const d = await res.json();
+    const url = d.download_url;
+    if (!url) return null;
+    return {
+      url,
+      title: d.title || '',
+      author: d.author?.nickname || d.author?.username || '',
+      cover: d.author?.avatar || null,
+      quality: 'HD',
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function fetchViaTikWM(link) {
   try {
     const res = await fetch('https://www.tikwm.com/api/?url=' + encodeURIComponent(link), {
@@ -93,12 +114,13 @@ async function fetchViaSSSTik(link) {
 }
 
 async function getTikTokVideoUrl(link) {
-  let result = await fetchViaSSSTik(link);
+  let result = await fetchViaSlbjs(link);
+  if (result) return result;
+  result = await fetchViaLovetik(link);
   if (result) return result;
   result = await fetchViaTikWM(link);
   if (result) return result;
-  result = await fetchViaLovetik(link);
-  return result;
+  return await fetchViaSSSTik(link);
 }
 
 const corsHeaders = {
