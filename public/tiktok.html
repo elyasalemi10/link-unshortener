@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TikTok Downloader - Best Quality</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f0f12;
+      --surface: #1a1a1f;
+      --border: #2a2a32;
+      --accent: #fe2c55;
+      --accent-dim: #cc2244;
+      --accent-cyan: #25f4ee;
+      --text: #e8e8ed;
+      --text-muted: #8888a0;
+      --error: #ff6b6b;
+      --success: #00d4aa;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(254, 44, 85, 0.12), transparent),
+        radial-gradient(ellipse 60% 40% at 100% 100%, rgba(37, 244, 238, 0.06), transparent);
+    }
+
+    main {
+      width: 100%;
+      max-width: 560px;
+    }
+
+    .nav-link {
+      position: absolute;
+      top: 1.5rem;
+      left: 1.5rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: color 0.2s;
+    }
+    .nav-link:hover {
+      color: var(--accent-cyan);
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 2rem;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    input {
+      flex: 1;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      padding: 1rem 1.25rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input::placeholder {
+      color: var(--text-muted);
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(254, 44, 85, 0.15);
+    }
+
+    button {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding: 1rem 1.5rem;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    button:hover {
+      background: var(--accent-dim);
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .result {
+      margin-top: 1.5rem;
+      padding: 1.25rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: none;
+    }
+
+    .result.visible {
+      display: block;
+    }
+
+    .result.error {
+      border-color: rgba(255, 107, 107, 0.4);
+      background: rgba(255, 107, 107, 0.08);
+    }
+
+    .result.success {
+      border-color: rgba(0, 212, 170, 0.3);
+    }
+
+    .result-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .result-url {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      word-break: break-all;
+      color: var(--accent-cyan);
+    }
+
+    .result.error .result-url {
+      color: var(--error);
+    }
+
+    .video-preview {
+      margin-top: 1rem;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #000;
+      max-height: 280px;
+    }
+
+    .video-preview video {
+      width: 100%;
+      display: block;
+    }
+
+    .video-preview img {
+      width: 100%;
+      display: block;
+    }
+
+    .video-meta {
+      margin-top: 0.75rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .video-meta span {
+      margin-right: 1rem;
+    }
+
+    .quality-badge {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      background: var(--accent);
+      color: white;
+      font-size: 0.7rem;
+      font-weight: 600;
+      border-radius: 4px;
+      margin-left: 0.5rem;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .download-btn {
+      background: var(--success);
+      color: var(--bg);
+    }
+
+    .download-btn:hover {
+      background: #00a884;
+    }
+
+    .copy-btn {
+      background: transparent;
+      color: var(--accent-cyan);
+      border: 1px solid var(--accent-cyan);
+    }
+
+    .copy-btn:hover {
+      background: rgba(37, 244, 238, 0.1);
+    }
+
+    .copy-btn.copied {
+      border-color: var(--success);
+      color: var(--success);
+    }
+  </style>
+</head>
+<body>
+  <a href="/" class="nav-link">← Link Unshortener</a>
+
+  <main>
+    <h1>TikTok Downloader</h1>
+    <p class="subtitle">Paste a TikTok link and download in the best quality — no watermark</p>
+
+    <div class="input-group">
+      <input
+        type="url"
+        id="urlInput"
+        placeholder="https://www.tiktok.com/@user/video/123..."
+        autocomplete="off"
+      />
+      <button id="downloadBtn">Download</button>
+    </div>
+
+    <div id="result" class="result">
+      <div class="result-label">Video ready</div>
+      <div id="resultContent"></div>
+      <div id="videoPreview" class="video-preview" style="display: none;"></div>
+      <div id="videoMeta" class="video-meta" style="display: none;"></div>
+      <div class="btn-group">
+        <button id="saveBtn" class="download-btn" style="display: none;">Save video</button>
+        <button id="copyBtn" class="copy-btn" style="display: none;">Copy link</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const urlInput = document.getElementById('urlInput');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const resultEl = document.getElementById('result');
+    const resultContent = document.getElementById('resultContent');
+    const videoPreview = document.getElementById('videoPreview');
+    const videoMeta = document.getElementById('videoMeta');
+    const saveBtn = document.getElementById('saveBtn');
+    const copyBtn = document.getElementById('copyBtn');
+
+    let currentDownloadUrl = '';
+
+    downloadBtn.addEventListener('click', fetchVideo);
+    urlInput.addEventListener('keydown', (e) => e.key === 'Enter' && fetchVideo());
+
+    async function fetchVideo() {
+      const url = urlInput.value.trim();
+      if (!url) {
+        showResult('Please paste a TikTok link', true);
+        return;
+      }
+
+      downloadBtn.disabled = true;
+      resultEl.classList.remove('visible', 'error', 'success');
+      resultEl.classList.add('visible');
+      resultContent.textContent = 'Fetching video...';
+      videoPreview.style.display = 'none';
+      videoMeta.style.display = 'none';
+      saveBtn.style.display = 'none';
+      copyBtn.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/tiktok', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          showResult(data.error || 'Something went wrong', true);
+          return;
+        }
+
+        if (!data.success || !data.downloadUrl) {
+          showResult(data.error || 'No download available', true);
+          return;
+        }
+
+        currentDownloadUrl = data.downloadUrl;
+        resultEl.classList.add('success');
+
+        let html = `Ready to download`;
+        if (data.title) html += ` — ${data.title.slice(0, 60)}${data.title.length > 60 ? '…' : ''}`;
+        html += data.quality ? ` <span class="quality-badge">${data.quality}</span>` : '';
+        resultContent.innerHTML = html;
+
+        if (data.cover) {
+          videoPreview.style.display = 'block';
+          videoPreview.innerHTML = `<img src="${escapeHtml(data.cover)}" alt="Preview" onerror="this.parentElement.style.display='none'">`;
+        }
+
+        if (data.author || data.duration) {
+          videoMeta.style.display = 'block';
+          videoMeta.innerHTML = [
+            data.author && `<span>@${escapeHtml(data.author)}</span>`,
+            data.duration && `<span>${data.duration}s</span>`,
+          ].filter(Boolean).join('');
+        }
+
+        saveBtn.style.display = 'inline-block';
+        copyBtn.style.display = 'inline-block';
+        copyBtn.textContent = 'Copy link';
+        copyBtn.classList.remove('copied');
+      } catch (err) {
+        showResult(err.message || 'Failed to connect', true);
+      } finally {
+        downloadBtn.disabled = false;
+      }
+    }
+
+    function showResult(text, isError) {
+      resultEl.classList.toggle('error', isError);
+      resultEl.classList.toggle('success', !isError && text !== 'Fetching video...');
+      resultContent.textContent = text;
+      resultContent.innerHTML = text;
+    }
+
+    function escapeHtml(s) {
+      const div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
+    saveBtn.addEventListener('click', () => {
+      if (!currentDownloadUrl) return;
+      const a = document.createElement('a');
+      a.href = '/api/tiktok/proxy?url=' + encodeURIComponent(currentDownloadUrl);
+      a.download = 'tiktok-video.mp4';
+      a.target = '_blank';
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+
+    copyBtn.addEventListener('click', async () => {
+      if (!currentDownloadUrl) return;
+      try {
+        await navigator.clipboard.writeText(currentDownloadUrl);
+        copyBtn.textContent = 'Copied!';
+        copyBtn.classList.add('copied');
+        setTimeout(() => {
+          copyBtn.textContent = 'Copy link';
+          copyBtn.classList.remove('copied');
+        }, 2000);
+      } catch {
+        copyBtn.textContent = 'Copy failed';
+      }
+    });
+  </script>
+</body>
+</html>
