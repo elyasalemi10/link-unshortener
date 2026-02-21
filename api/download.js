@@ -96,15 +96,21 @@ export default {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
-    if (request.method !== 'GET') {
-      return new Response(JSON.stringify({ error: 'Method not allowed. Use GET with ?url=' }), {
+    if (request.method !== 'GET' && request.method !== 'POST') {
+      return new Response(JSON.stringify({ error: 'Use GET ?url=... or POST with {"url":"..."}' }), {
         status: 405,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
     try {
-      const u = new URL(request.url);
-      let link = (u.searchParams.get('url') || '').trim();
+      let link;
+      if (request.method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        link = (body?.url || '').trim();
+      } else {
+        const u = new URL(request.url);
+        link = (u.searchParams.get('url') || '').trim();
+      }
       if (!link) {
         return new Response(JSON.stringify({ error: 'Missing url parameter. Use ?url=YOUR_TIKTOK_LINK' }), {
           status: 400,
@@ -130,10 +136,11 @@ export default {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+      const referer = bestUrl.includes('tikcdn') ? 'https://ssstik.io/' : 'https://www.tiktok.com/';
       const videoRes = await fetch(bestUrl, {
         headers: {
           'User-Agent': UA,
-          'Referer': 'https://www.tiktok.com/',
+          'Referer': referer,
         },
         signal: AbortSignal.timeout(60000),
       });
@@ -143,24 +150,21 @@ export default {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      const ct = (videoRes.headers.get('content-type') || '').toLowerCase();
-      const looksLikeVideo = ct.includes('video') || ct.includes('octet-stream');
-      if (!looksLikeVideo) {
-        const sample = await videoRes.clone().arrayBuffer();
-        const arr = new Uint8Array(sample);
-        const isMP4 = arr.length >= 8 && arr[4] === 0x66 && arr[5] === 0x74 && arr[6] === 0x79 && arr[7] === 0x70;
-        if (!isMP4) {
-          return new Response(JSON.stringify({ error: 'Video source returned invalid content. Try a different link.' }), {
-            status: 502,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
+      const buffer = await videoRes.arrayBuffer();
+      const arr = new Uint8Array(buffer);
+      const isMP4 = arr.length >= 8 && arr[4] === 0x66 && arr[5] === 0x74 && arr[6] === 0x79 && arr[7] === 0x70;
+      if (!isMP4) {
+        return new Response(JSON.stringify({ error: 'Video source returned invalid content. Try a different link.' }), {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
-      return new Response(videoRes.body, {
+      return new Response(buffer, {
         status: 200,
         headers: {
           'Content-Type': 'video/mp4',
           'Content-Disposition': 'attachment; filename="tiktok-video.mp4"',
+          'Content-Length': String(buffer.byteLength),
           ...corsHeaders,
         },
       });

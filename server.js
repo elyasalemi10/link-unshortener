@@ -217,10 +217,11 @@ const server = http.createServer(async (req, res) => {
         res.end('Invalid URL');
         return;
       }
+      const referer = proxyUrl.includes('tikcdn') ? 'https://ssstik.io/' : 'https://www.tiktok.com/';
       const videoRes = await fetch(proxyUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Referer': 'https://www.tiktok.com/',
+          'Referer': referer,
         },
         signal: AbortSignal.timeout(60000),
       });
