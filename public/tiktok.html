@@ -310,7 +310,13 @@
           body: JSON.stringify({ url }),
         });
 
-        const data = await res.json();
+        let data;
+        try {
+          data = await res.json();
+        } catch (parseErr) {
+          showResult('Server returned an invalid response. Try again later.', true);
+          return;
+        }
 
         if (!res.ok) {
           showResult(data.error || 'Something went wrong', true);

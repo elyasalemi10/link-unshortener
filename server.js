@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { Readable } = require('stream');
+const { getTikTokVideoUrl } = require('./lib/tiktok-fetcher');
 
 // Load .env
 try {
@@ -131,54 +132,21 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
-        const apiRes = await fetch('https://lovetik.com/api/ajax/search', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Origin': 'https://lovetik.com',
-            'Referer': 'https://lovetik.com/',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          },
-          body: new URLSearchParams({ query: link }),
-        });
-
-        const data = await apiRes.json();
-        if (!data.links || !Array.isArray(data.links)) {
+        const result = await getTikTokVideoUrl(link);
+        if (!result) {
           res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: data.mess || 'Could not get video. Try again or check the link.' }));
+          res.end(JSON.stringify({ error: 'Could not get video. Try again or use a different link.' }));
           return;
         }
-
-        const mp4Links = data.links.filter((l) => (l.t || '').includes('MP4'));
-        let bestUrl = null;
-        for (const l of mp4Links) {
-          const u = l.a || l.url;
-          if (u) {
-            if ((l.t || '').toLowerCase().includes('1080') || (l.t || '').toLowerCase().includes('hd')) {
-              bestUrl = u;
-              break;
-            }
-            if (!bestUrl) bestUrl = u;
-          }
-        }
-        if (!bestUrl && mp4Links.length) bestUrl = mp4Links[0].a || mp4Links[0].url;
-
-        if (!bestUrl) {
-          res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'No video URL found' }));
-          return;
-        }
-
-        const isHd = mp4Links.some((l) => (l.t || '').toLowerCase().includes('1080') || (l.t || '').toLowerCase().includes('hd'));
         res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           success: true,
-          downloadUrl: bestUrl,
-          title: data.desc || data.title || 'TikTok video',
-          author: data.author || data.author_name || '',
-          cover: data.cover || data.thumbnail || null,
-          duration: data.duration || null,
-          quality: isHd ? 'HD' : 'SD',
+          downloadUrl: result.url,
+          title: result.title || 'TikTok video',
+          author: result.author || '',
+          cover: result.cover || null,
+          duration: null,
+          quality: result.quality || 'HD',
         }));
       } catch (err) {
         res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
@@ -208,41 +176,14 @@ const server = http.createServer(async (req, res) => {
         const r = await fetch(link, { redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } });
         link = r.url || link;
       }
-      // 2. Get video URL from Lovetik
-      const apiRes = await fetch('https://lovetik.com/api/ajax/search', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Origin': 'https://lovetik.com',
-          'Referer': 'https://lovetik.com/',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        },
-        body: new URLSearchParams({ query: link }),
-      });
-      const data = await apiRes.json();
-      if (!data.links || !Array.isArray(data.links)) {
+      // 2. Get video URL (Lovetik + SSSTik fallback)
+      const result = await getTikTokVideoUrl(link);
+      if (!result) {
         res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: data.mess || 'Could not get video' }));
+        res.end(JSON.stringify({ error: 'Could not get video. Try again or use a different link.' }));
         return;
       }
-      const mp4Links = data.links.filter((l) => (l.t || '').includes('MP4'));
-      let bestUrl = null;
-      for (const l of mp4Links) {
-        const u = l.a || l.url;
-        if (u) {
-          if ((l.t || '').toLowerCase().includes('1080') || (l.t || '').toLowerCase().includes('hd')) {
-            bestUrl = u;
-            break;
-          }
-          if (!bestUrl) bestUrl = u;
-        }
-      }
-      if (!bestUrl && mp4Links.length) bestUrl = mp4Links[0].a || mp4Links[0].url;
-      if (!bestUrl) {
-        res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'No video URL found' }));
-        return;
-      }
+      const bestUrl = result.url;
       // 3. Stream video
       const videoRes = await fetch(bestUrl, {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
@@ -270,7 +211,8 @@ const server = http.createServer(async (req, res) => {
     try {
       const u = new URL(req.url, 'http://localhost');
       const proxyUrl = u.searchParams.get('url');
-      if (!proxyUrl || !proxyUrl.startsWith('https://') || (!proxyUrl.includes('tiktok') && !proxyUrl.includes('tiktokcdn') && !proxyUrl.includes('byteoversea'))) {
+      const allowedHosts = ['tiktok', 'tiktokcdn', 'byteoversea', 'lovetik'];
+      if (!proxyUrl || !proxyUrl.startsWith('https://') || !allowedHosts.some((h) => proxyUrl.includes(h))) {
         res.writeHead(400);
         res.end('Invalid URL');
         return;

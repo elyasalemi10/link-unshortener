@@ -1,3 +1,7 @@
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { getTikTokVideoUrl } = require('../lib/tiktok-fetcher.js');
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
@@ -41,42 +45,14 @@ export default {
       }
 
       // 2. Get video URL from Lovetik
-      const apiRes = await fetch('https://lovetik.com/api/ajax/search', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Origin': 'https://lovetik.com',
-          'Referer': 'https://lovetik.com/',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
-        body: new URLSearchParams({ query: link }),
-      });
-      const data = await apiRes.json();
-      if (!data.links || !Array.isArray(data.links)) {
-        return new Response(JSON.stringify({ error: data.mess || 'Could not get video' }), {
+      const result = await getTikTokVideoUrl(link);
+      if (!result) {
+        return new Response(JSON.stringify({ error: 'Could not get video. Try again or use a different link.' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      const mp4Links = data.links.filter((l) => (l.t || '').includes('MP4'));
-      let bestUrl = null;
-      for (const l of mp4Links) {
-        const u = l.a || l.url;
-        if (u) {
-          if ((l.t || '').toLowerCase().includes('1080') || (l.t || '').toLowerCase().includes('hd')) {
-            bestUrl = u;
-            break;
-          }
-          if (!bestUrl) bestUrl = u;
-        }
-      }
-      if (!bestUrl && mp4Links.length) bestUrl = mp4Links[0].a || mp4Links[0].url;
-      if (!bestUrl) {
-        return new Response(JSON.stringify({ error: 'No video URL found' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
+      const bestUrl = result.url;
 
       // 3. Fetch and stream video
       const videoRes = await fetch(bestUrl, {
