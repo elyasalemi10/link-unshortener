@@ -312,14 +312,15 @@
 
         let data;
         try {
-          data = await res.json();
+          const text = await res.text();
+          data = text ? JSON.parse(text) : {};
         } catch (parseErr) {
-          showResult('Server returned an invalid response. Try again later.', true);
+          showResult('Server returned an invalid response. The service may be down—try again later.', true);
           return;
         }
 
         if (!res.ok) {
-          showResult(data.error || 'Something went wrong', true);
+          showResult(data?.error || 'Something went wrong', true);
           return;
         }
 
