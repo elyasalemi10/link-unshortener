@@ -1,5 +1,20 @@
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
+async function fetchViaTikWM(link) {
+  try {
+    const res = await fetch('https://www.tikwm.com/api/?url=' + encodeURIComponent(link), {
+      headers: { 'User-Agent': UA },
+      signal: AbortSignal.timeout(15000),
+    });
+    const data = await res.json();
+    if (data.code !== 0 || !data.data) return null;
+    const d = data.data;
+    return d.hdplay || d.play || null;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchViaLovetik(link) {
   const res = await fetch('https://lovetik.com/api/ajax/search', {
     method: 'POST',
@@ -63,7 +78,9 @@ async function fetchViaSSSTik(link) {
 }
 
 async function getTikTokVideoUrl(link) {
-  let url = await fetchViaLovetik(link);
+  let url = await fetchViaTikWM(link);
+  if (url) return url;
+  url = await fetchViaLovetik(link);
   if (url) return url;
   return await fetchViaSSSTik(link);
 }
