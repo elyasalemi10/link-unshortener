@@ -188,6 +188,83 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // GET /api/download?url=... - Expand short link, fetch video, stream it back
+  if (req.url.startsWith('/api/download') && req.method === 'GET') {
+    try {
+      const u = new URL(req.url, 'http://localhost');
+      let link = (u.searchParams.get('url') || '').trim();
+      if (!link) {
+        res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Missing url parameter. Use ?url=YOUR_TIKTOK_LINK' }));
+        return;
+      }
+      if (!/tiktok\.com|vm\.tiktok\.com|vt\.tiktok\.com/.test(link)) {
+        res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid TikTok URL' }));
+        return;
+      }
+      // 1. Expand short link
+      if (/^(https?:\/\/)?(vt|vm)\.tiktok\.com\//i.test(link)) {
+        const r = await fetch(link, { redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } });
+        link = r.url || link;
+      }
+      // 2. Get video URL from Lovetik
+      const apiRes = await fetch('https://lovetik.com/api/ajax/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Origin': 'https://lovetik.com',
+          'Referer': 'https://lovetik.com/',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+        body: new URLSearchParams({ query: link }),
+      });
+      const data = await apiRes.json();
+      if (!data.links || !Array.isArray(data.links)) {
+        res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: data.mess || 'Could not get video' }));
+        return;
+      }
+      const mp4Links = data.links.filter((l) => (l.t || '').includes('MP4'));
+      let bestUrl = null;
+      for (const l of mp4Links) {
+        const u = l.a || l.url;
+        if (u) {
+          if ((l.t || '').toLowerCase().includes('1080') || (l.t || '').toLowerCase().includes('hd')) {
+            bestUrl = u;
+            break;
+          }
+          if (!bestUrl) bestUrl = u;
+        }
+      }
+      if (!bestUrl && mp4Links.length) bestUrl = mp4Links[0].a || mp4Links[0].url;
+      if (!bestUrl) {
+        res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'No video URL found' }));
+        return;
+      }
+      // 3. Stream video
+      const videoRes = await fetch(bestUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        signal: AbortSignal.timeout(60000),
+      });
+      if (!videoRes.ok) {
+        res.writeHead(502, { ...corsHeaders, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to fetch video' }));
+        return;
+      }
+      res.writeHead(200, {
+        'Content-Type': 'video/mp4',
+        'Content-Disposition': 'attachment; filename="tiktok-video.mp4"',
+      });
+      Readable.fromWeb(videoRes.body).pipe(res);
+    } catch (err) {
+      res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message || 'Download failed' }));
+    }
+    return;
+  }
+
   // Proxy: Stream TikTok video for download (avoids CORS)
   if (req.url.startsWith('/api/tiktok/proxy') && req.method === 'GET') {
     try {

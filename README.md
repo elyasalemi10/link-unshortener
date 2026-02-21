@@ -38,8 +38,35 @@ Visit http://localhost:3000
 
 ## API
 
+### Link Unshortener
+
 **POST** `/api`
 
 - **Auth:** `Authorization: Bearer <API_KEY>`
 - **Body:** `{ "link": "https://vt.tiktok.com/..." }`
 - **Response:** `{ "link": "https://www.tiktok.com/..." }`
+
+### TikTok Video Download
+
+**GET** `/api/download?url=...` — Expand short link, fetch video, stream MP4 back
+
+Works with short links (`vt.tiktok.com`, `vm.tiktok.com`) and full URLs. Automatically expands short links before downloading.
+
+**Example:**
+
+```bash
+# Short link (auto-expanded)
+curl -L -o video.mp4 "https://your-domain.com/api/download?url=https://vt.tiktok.com/ZSr7brpo4/"
+
+# Full URL
+curl -L -o video.mp4 "https://your-domain.com/api/download?url=https://www.tiktok.com/@user/video/1234567890"
+```
+
+**Response:** Binary MP4 stream or JSON error.
+
+---
+
+**POST** `/api/tiktok` — Get download URL (JSON, no streaming)
+
+- **Body:** `{ "url": "https://vt.tiktok.com/..." }`
+- **Response:** `{ "success": true, "downloadUrl": "https://...", "title": "...", "author": "..." }`
